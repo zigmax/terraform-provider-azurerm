@@ -183,14 +183,13 @@ func resourceArmContainerService() *schema.Resource {
 }
 
 func resourceArmContainerServiceCreate(d *schema.ResourceData, meta interface{}) error {
-	client := meta.(*ArmClient)
-	containerServiceClient := client.containerServicesClient
+	client := meta.(*ArmClient).containerServicesClient
 
 	log.Printf("[INFO] preparing arguments for Azure ARM Container Service creation.")
 
 	resGroup := d.Get("resource_group_name").(string)
 	name := d.Get("name").(string)
-	location := d.Get("location").(string)
+	location := azureRMNormalizeLocation(d.Get("location").(string))
 
 	orchestrationPlatform := d.Get("orchestration_platform").(string)
 
@@ -203,7 +202,7 @@ func resourceArmContainerServiceCreate(d *schema.ResourceData, meta interface{})
 
 	parameters := containerservice.ContainerService{
 		Name:     &name,
-		Location: &azureRMNormalizeLocation(location),
+		Location: &location,
 		Properties: &containerservice.Properties{
 			MasterProfile: &masterProfile,
 			LinuxProfile:  &linuxProfile,
@@ -221,22 +220,22 @@ func resourceArmContainerServiceCreate(d *schema.ResourceData, meta interface{})
 		parameters.ServicePrincipalProfile = servicePrincipalProfile
 	}
 
-	_, error := containerServiceClient.CreateOrUpdate(resGroup, name, parameters, make(chan struct{}))
+	_, error := client.CreateOrUpdate(resGroup, name, parameters, make(chan struct{}))
 	err := <-error
 	if err != nil {
 		return err
 	}
 
-	read, err := containerServiceClient.Get(resGroup, name)
+	read, err := client.Get(resGroup, name)
 	if err != nil {
 		return err
 	}
 
 	if read.ID == nil {
-		return fmt.Errorf("Cannot read Container Service %s (resource group %s) ID", name, resGroup)
+		return fmt.Errorf("Cannot read Container Service %q (resource group %q) ID", name, resGroup)
 	}
 
-	log.Printf("[DEBUG] Waiting for Container Service (%s) to become available", d.Get("name"))
+	log.Printf("[DEBUG] Waiting for Container Service (%s) to become available", name)
 	stateConf := &resource.StateChangeConf{
 		Pending:    []string{"Updating", "Creating"},
 		Target:     []string{"Succeeded"},
@@ -245,7 +244,7 @@ func resourceArmContainerServiceCreate(d *schema.ResourceData, meta interface{})
 		MinTimeout: 15 * time.Second,
 	}
 	if _, err := stateConf.WaitForState(); err != nil {
-		return fmt.Errorf("Error waiting for Container Service (%s) to become available: %s", d.Get("name"), err)
+		return fmt.Errorf("Error waiting for Container Service (%q) to become available: %+v", name, err)
 	}
 
 	d.SetId(*read.ID)
@@ -322,7 +321,7 @@ func resourceArmContainerServiceDelete(d *schema.ResourceData, meta interface{})
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("Error issuing Azure ARM delete request of Container Service '%s': %s", name, err)
+		return fmt.Errorf("Error issuing Azure ARM delete request of Container Service %q: %+v", name, err)
 	}
 
 	return nil
@@ -528,11 +527,11 @@ func expandAzureRmContainerServiceAgentProfiles(d *schema.ResourceData) []contai
 	return profiles
 }
 
-func containerServiceStateRefreshFunc(client *ArmClient, resourceGroupName string, containerServiceName string) resource.StateRefreshFunc {
+func containerServiceStateRefreshFunc(client containerservice.ContainerServicesClient, resourceGroupName string, containerServiceName string) resource.StateRefreshFunc {
 	return func() (interface{}, string, error) {
-		res, err := client.containerServicesClient.Get(resourceGroupName, containerServiceName)
+		res, err := client.Get(resourceGroupName, containerServiceName)
 		if err != nil {
-			return nil, "", fmt.Errorf("Error issuing read request in containerServiceStateRefreshFunc to Azure ARM for Container Service '%s' (RG: '%s'): %s", containerServiceName, resourceGroupName, err)
+			return nil, "", fmt.Errorf("Error issuing read request in containerServiceStateRefreshFunc to Azure ARM for Container Service '%s' (RG: '%s'): %+v", containerServiceName, resourceGroupName, err)
 		}
 
 		return res, *res.Properties.ProvisioningState, nil
