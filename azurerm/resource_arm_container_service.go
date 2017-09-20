@@ -203,7 +203,7 @@ func resourceArmContainerServiceCreate(d *schema.ResourceData, meta interface{})
 
 	parameters := containerservice.ContainerService{
 		Name:     &name,
-		Location: &location,
+		Location: &azureRMNormalizeLocation(location),
 		Properties: &containerservice.Properties{
 			MasterProfile: &masterProfile,
 			LinuxProfile:  &linuxProfile,
