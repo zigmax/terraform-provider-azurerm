@@ -1,0 +1,17 @@
+{
+  "name": "terraform-provider-azurerm",
+  "version": "1.0.0",
+  "description": "Terraform provider of Azure resources",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/terraform-providers/terraform-provider-azurerm.git"
+  },
+  "license": "MPL-2.0",
+  "bugs": {
+    "url": "https://github.com/terraform-providers/terraform-provider-azurerm/issues"
+  },
+  "homepage": "https://github.com/terraform-providers/terraform-provider-azurerm#readme",
+  "devDependencies": {
+    "autorest": "^2.0.4215"
+  }
+}
