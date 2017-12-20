@@ -27,6 +27,7 @@ website/node_modules
 # Packages
 node_modules/
 website/vendor
+azure-rest-api/
 
 .vscode/
 

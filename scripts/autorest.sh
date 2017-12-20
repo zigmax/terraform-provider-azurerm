@@ -1,0 +1,1 @@
+./node_modules/.bin/autorest --output-folder=/home/junyi/go/src/github.com/terraform-providers/terraform-provider-azurerm/azure-rest-api/web --clear-output-folder --can-clear-output-folder --namespace=azurerest --go ../../Azure/azure-rest-api-specs/specification/web/resource-manager/readme.md
