@@ -721,6 +721,24 @@ func resourceArmApplicationGatewayCreateUpdate(d *schema.ResourceData, meta inte
 		ApplicationGatewayPropertiesFormat: &properties,
 	}
 
+	shouldStartAppGateway := false
+	if !d.IsNewResource() {
+		if d.HasChange("gateway_ip_configuration.0.subnet_id") {
+			shouldStartAppGateway = true
+
+			// Application Gateways need to be stopped to change the Subnet
+			future, err := client.Stop(ctx, resGroup, name)
+			if err != nil {
+				return fmt.Errorf("Error stopping the Application Gateway %q (Resource Group %q): %+v", name, resGroup, err)
+			}
+
+			err = future.WaitForCompletion(ctx, client.Client)
+			if err != nil {
+				return fmt.Errorf("Error waiting for the Application Gateway %q (Resource Group %q) to stop: %+v", name, resGroup, err)
+			}
+		}
+	}
+
 	future, err := client.CreateOrUpdate(ctx, resGroup, name, gateway)
 	if err != nil {
 		return fmt.Errorf("Error Creating/Updating ApplicationGateway %q (Resource Group %q): %+v", name, resGroup, err)
@@ -731,12 +749,24 @@ func resourceArmApplicationGatewayCreateUpdate(d *schema.ResourceData, meta inte
 		return fmt.Errorf("Error Creating/Updating ApplicationGateway %q (Resource Group %q): %+v", name, resGroup, err)
 	}
 
+	if shouldStartAppGateway {
+		future, err := client.Start(ctx, resGroup, name)
+		if err != nil {
+			return fmt.Errorf("Error starting the Application Gateway %q (Resource Group %q): %+v", name, resGroup, err)
+		}
+
+		err = future.WaitForCompletion(ctx, client.Client)
+		if err != nil {
+			return fmt.Errorf("Error waiting for the Application Gateway %q (Resource Group %q) to start: %+v", name, resGroup, err)
+		}
+	}
+
 	read, err := client.Get(ctx, resGroup, name)
 	if err != nil {
 		return fmt.Errorf("Error retrieving ApplicationGateway %q (Resource Group %q): %+v", name, resGroup, err)
 	}
 	if read.ID == nil {
-		return fmt.Errorf("Cannot read ApplicationGateway %s (resource group %s) ID", name, resGroup)
+		return fmt.Errorf("Cannot read ApplicationGateway %q (resource group %s) ID", name, resGroup)
 	}
 
 	d.SetId(*read.ID)

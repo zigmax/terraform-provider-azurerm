@@ -166,6 +166,8 @@ The `gateway_ip_configuration` block supports:
 
 * `subnet_id` - (Required) Reference to a Subnet. Application Gateway is deployed in this subnet. No other resource can be deployed in a subnet where Application Gateway is deployed.
 
+~> **Note:** When updating this field, the Application Gateway will be automatically stopped and started (as is required by Azure).
+
 The `frontend_port` block supports:
 
 * `name` - (Required) User defined name for frontend Port.
