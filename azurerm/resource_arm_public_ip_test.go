@@ -94,6 +94,8 @@ func TestAccAzureRMPublicIpStatic_basic(t *testing.T) {
 					testCheckAzureRMPublicIpExists(resourceName),
 					resource.TestCheckResourceAttrSet(resourceName, "ip_address"),
 					resource.TestCheckResourceAttr(resourceName, "public_ip_address_allocation", "static"),
+					resource.TestCheckResourceAttrSet(resourceName, "domain_name_label"),
+					resource.TestCheckResourceAttrSet(resourceName, "reverse_fqdn"),
 				),
 			},
 		},

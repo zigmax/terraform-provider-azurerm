@@ -220,9 +220,9 @@ func resourceArmPublicIpRead(d *schema.ResourceData, meta interface{}) error {
 		d.Set("public_ip_address_allocation", strings.ToLower(string(props.PublicIPAllocationMethod)))
 
 		if settings := props.DNSSettings; settings != nil {
-			if fqdn := settings.Fqdn; fqdn != nil {
-				d.Set("fqdn", fqdn)
-			}
+			d.Set("fqdn", settings.Fqdn)
+			d.Set("domain_name_label", settings.DomainNameLabel)
+			d.Set("reverse_fqdn", settings.ReverseFqdn)
 		}
 
 		if ip := props.IPAddress; ip != nil {
