@@ -225,8 +225,9 @@ func resourceArmPublicIpRead(d *schema.ResourceData, meta interface{}) error {
 			d.Set("reverse_fqdn", settings.ReverseFqdn)
 		}
 
-		if ip := props.IPAddress; ip != nil {
-			d.Set("ip_address", ip)
+		d.Set("ip_address", props.IPAddress)
+		if timeout := props.IdleTimeoutInMinutes; timeout != nil {
+			d.Set("idle_timeout_in_minutes", int(*timeout))
 		}
 	}
 

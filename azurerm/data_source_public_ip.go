@@ -60,23 +60,17 @@ func dataSourceArmPublicIPRead(d *schema.ResourceData, meta interface{}) error {
 
 	d.SetId(*resp.ID)
 
-	if resp.PublicIPAddressPropertiesFormat.DNSSettings != nil {
-
-		if resp.PublicIPAddressPropertiesFormat.DNSSettings.Fqdn != nil && *resp.PublicIPAddressPropertiesFormat.DNSSettings.Fqdn != "" {
-			d.Set("fqdn", resp.PublicIPAddressPropertiesFormat.DNSSettings.Fqdn)
+	if props := resp.PublicIPAddressPropertiesFormat; props != nil {
+		if settings := props.DNSSettings; settings != nil {
+			d.Set("fqdn", settings.Fqdn)
+			d.Set("domain_name_label", settings.DomainNameLabel)
+			d.Set("reverse_fqdn", settings.ReverseFqdn)
 		}
 
-		if resp.PublicIPAddressPropertiesFormat.DNSSettings.DomainNameLabel != nil && *resp.PublicIPAddressPropertiesFormat.DNSSettings.DomainNameLabel != "" {
-			d.Set("domain_name_label", resp.PublicIPAddressPropertiesFormat.DNSSettings.DomainNameLabel)
+		d.Set("ip_address", props.IPAddress)
+		if timeout := props.IdleTimeoutInMinutes; timeout != nil {
+			d.Set("idle_timeout_in_minutes", int(*timeout))
 		}
-	}
-
-	if resp.PublicIPAddressPropertiesFormat.IPAddress != nil && *resp.PublicIPAddressPropertiesFormat.IPAddress != "" {
-		d.Set("ip_address", resp.PublicIPAddressPropertiesFormat.IPAddress)
-	}
-
-	if resp.PublicIPAddressPropertiesFormat.IdleTimeoutInMinutes != nil {
-		d.Set("idle_timeout_in_minutes", *resp.PublicIPAddressPropertiesFormat.IdleTimeoutInMinutes)
 	}
 
 	flattenAndSetTags(d, resp.Tags)
