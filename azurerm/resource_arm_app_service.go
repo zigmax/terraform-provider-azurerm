@@ -239,6 +239,42 @@ func resourceArmAppService() *schema.Resource {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
+
+			"source_control": {
+				Type:     schema.TypeList,
+				Optional: true,
+				Computed: true,
+				MaxItems: 1,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"repo_url": {
+							Type:     schema.TypeString,
+							Optional: true,
+							Computed: true,
+						},
+						"branch": {
+							Type:     schema.TypeString,
+							Optional: true,
+							Default:  "master",
+						},
+						"is_manual_integration": {
+							Type:     schema.TypeBool,
+							Optional: true,
+							Default:  false,
+						},
+						"deployment_rollback_enabled": {
+							Type:     schema.TypeBool,
+							Optional: true,
+							Default:  false,
+						},
+						"is_mercurial": {
+							Type:     schema.TypeBool,
+							Optional: true,
+							Default:  false,
+						},
+					},
+				},
+			},
 		},
 	}
 }
@@ -325,6 +361,18 @@ func resourceArmAppServiceUpdate(d *schema.ResourceData, meta interface{}) error
 		}
 	}
 
+	if d.HasChange("source_control") {
+		// update the main configuration
+		sourceControlProps := expandAppServiceSourceControl(d)
+		siteSourceControl := web.SiteSourceControl{
+			SiteSourceControlProperties: &sourceControlProps,
+		}
+		_, err := client.CreateOrUpdateSourceControl(ctx, resGroup, name, siteSourceControl)
+		if err != nil {
+			return fmt.Errorf("Error updating source control for App Service %q: %+v", name, err)
+		}
+	}
+
 	if d.HasChange("app_settings") {
 		// update the AppSettings
 		appSettings := expandAppServiceAppSettings(d)
@@ -391,6 +439,11 @@ func resourceArmAppServiceRead(d *schema.ResourceData, meta interface{}) error {
 		return fmt.Errorf("Error making Read request on AzureRM App Service ConnectionStrings %q: %+v", name, err)
 	}
 
+	sourceControl, err := client.GetSourceControl(ctx, resGroup, name)
+	if err != nil {
+		return fmt.Errorf("Error making Read request on AzureRM App Service SourceControl %q: %+v", name, err)
+	}
+
 	d.Set("name", name)
 	d.Set("resource_group_name", resGroup)
 	d.Set("location", azureRMNormalizeLocation(*resp.Location))
@@ -407,6 +460,9 @@ func resourceArmAppServiceRead(d *schema.ResourceData, meta interface{}) error {
 		return err
 	}
 	if err := d.Set("connection_string", flattenAppServiceConnectionStrings(connectionStringsResp.Properties)); err != nil {
+		return err
+	}
+	if err := d.Set("source_control", flattenAppServiceSourceControl(sourceControl)); err != nil {
 		return err
 	}
 
@@ -522,6 +578,29 @@ func expandAppServiceSiteConfig(d *schema.ResourceData) web.SiteConfig {
 	return siteConfig
 }
 
+func expandAppServiceSourceControl(d *schema.ResourceData) web.SiteSourceControlProperties {
+	configs := d.Get("source_control").([]interface{})
+	sourceControlProps := web.SiteSourceControlProperties{}
+
+	if len(configs) == 0 {
+		return sourceControlProps
+	}
+
+	config := configs[0].(map[string]interface{})
+
+	sourceControlProps.RepoURL = utils.String(config["repo_url"].(string))
+
+	sourceControlProps.Branch = utils.String(config["branch"].(string))
+
+	sourceControlProps.IsManualIntegration = utils.Bool(config["is_manual_integration"].(bool))
+
+	sourceControlProps.DeploymentRollbackEnabled = utils.Bool(config["deployment_rollback_enabled"].(bool))
+
+	sourceControlProps.IsMercurial = utils.Bool(config["is_mercurial"].(bool))
+
+	return sourceControlProps
+}
+
 func flattenAppServiceSiteConfig(input *web.SiteConfig) []interface{} {
 	results := make([]interface{}, 0)
 	result := make(map[string]interface{}, 0)
@@ -635,6 +714,31 @@ func flattenAppServiceConnectionStrings(input *map[string]*web.ConnStringValueTy
 		result["value"] = *v.Value
 		results = append(results, result)
 	}
+
+	return results
+}
+
+func flattenAppServiceSourceControl(input web.SiteSourceControl) interface{} {
+	results := make([]interface{}, 0)
+
+	result := make(map[string]interface{}, 0)
+	if input.RepoURL != nil {
+		result["repo_url"] = *input.RepoURL
+	}
+	if input.Branch != nil {
+		result["branch"] = *input.Branch
+	}
+	if input.IsManualIntegration != nil {
+		result["is_manual_integration"] = *input.IsManualIntegration
+	}
+	if input.DeploymentRollbackEnabled != nil {
+		result["deployment_rollback_enabled"] = *input.DeploymentRollbackEnabled
+	}
+	if input.IsMercurial != nil {
+		result["is_mercurial"] = *input.IsMercurial
+	}
+
+	results = append(results, result)
 
 	return results
 }
