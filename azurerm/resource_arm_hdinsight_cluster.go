@@ -49,12 +49,12 @@ func resourceArmHDInsightClusterCreate(d *schema.ResourceData, meta interface{})
 	tags := d.Get("tags").(map[string]interface{})
 	metadata := expandTags(tags)
 
-	parameters := hdinsight.Cluster{
+	cluster := hdinsight.Cluster{
 		Location: utils.String(location),
 		Tags:     metadata,
 	}
 
-	future, err := client.CreateOrUpdate(ctx, resGroup, name, parameters)
+	future, err := client.Create(ctx, resGroup, name, cluster)
 	if err != nil {
 		return err
 	}
