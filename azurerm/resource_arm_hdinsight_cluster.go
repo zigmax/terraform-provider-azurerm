@@ -120,10 +120,50 @@ func resourceArmHDInsightCluster() *schema.Resource {
                     MaxItems: 1,
                     Elem: &schema.Resource{
                       Schema: map[string]*schema.Schema{
-                        
+                        "vm_size": {
+													Type: schema.TypeString,
+													Required: true,
+													ForceNew: true,
+												},
                       },
                     },
                   },
+									"os_profile": {
+										Type: schema.TypeList,
+										Required: true,
+										ForceNew: true,
+										MaxItems: 1,
+										Elem: &schema.Resource{
+											Schema: map[string]*schema.Schema{
+												"linux_operating_system_profile": {
+													Type: schema.TypeList,
+													Required: true,
+													ForceNew: true,
+													MaxItems: 1,
+													Elem: &schema.Resource{
+														Schema: map[string]*schema.Schema{
+															"username": {
+																Type: schema.TypeString,
+																Required: true,
+																ForceNew: true,
+															},
+															"password": {
+																Type: schema.TypeString,
+																Optional: true,
+																ForceNew: true,
+															},
+															"ssh_keys": {
+																Type: schema.TypeList,
+																Optional: true,
+																ForceNew: true,
+																Elem:     &schema.Schema{Type: schema.TypeString},
+															},
+														},
+													},
+												},
+											},
+										},
+									},
                 },
               },
             },
@@ -189,6 +229,8 @@ func resourceArmHDInsightClusterCreate(d *schema.ResourceData, meta interface{})
 	tags := d.Get("tags").(map[string]interface{})
 	metadata := expandTags(tags)
 
+	clusterCreateProperties := expandClusterCreateProperties(d)
+
 	cluster := hdinsight.Cluster{
 		Location: utils.String(location),
 		Tags:     metadata,
@@ -218,6 +260,8 @@ func resourceArmHDInsightClusterCreate(d *schema.ResourceData, meta interface{})
 
 	return resourceArmHDInsightClusterRead(d, meta)
 }
+
+
 
 func resourceArmHDInsightClusterRead(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*ArmClient).clustersClient
