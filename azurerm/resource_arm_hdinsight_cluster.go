@@ -33,6 +33,146 @@ func resourceArmHDInsightCluster() *schema.Resource {
 			"resource_group_name": resourceGroupNameSchema(),
 
 			"tags": tagsSchema(),
+
+      "cluster_version": {
+        Type: schema.TypeString,
+        Required: true,
+        ForceNew: true,
+      },
+
+      "os_type": {
+        Type: schema.TypeString,
+        Required: true,
+        ForceNew: true,
+        ValidateFunc: validation.StringInSlice([]string{
+ 					string(hdinsight.Linux),
+ 					string(hdinsight.Windows),
+ 				}, true),
+      },
+
+      "tier": {
+        Type: schema.TypeString,
+        Required: true,
+        ForceNew: true,
+        ValidateFunc: validation.StringInSlice([]string{
+          string(hdinsight.Premium),
+          string(hdinsight.Standard),
+        }, true),
+      },
+
+      "cluster_definition": {
+        Type: schema.TypeList
+        Required: true,
+        ForceNew: true,
+        MaxItems: 1,
+        Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+            "blueprint": {
+              Type: schema.TypeString,
+              Optional: true,
+              ForceNew: true,
+            },
+            "kind": {
+              Type: schema.TypeString,
+              Required: true,
+              ForceNew: true,
+            },
+            "component_version": {
+              Type:     schema.TypeMap,
+              Computed: true,
+              ForceNew: true,
+            },
+            "configurations": {
+              Type:     schema.TypeMap,
+              Required: true,
+              ForceNew: true,
+            },
+          },
+        },
+      },
+      "compute_profile": {
+        Type: schema.TypeList
+        Required: true,
+        ForceNew: true,
+        MaxItems: 1,
+        Elem: &schema.Resource{
+          Schema: map[string]*schema.Schema{
+            "role": {
+              Type: schema.TypeSet
+              Required: true,
+              ForceNew: true,
+              Elem: &schema.Resource{
+                Schema: map[string]*schema.Schema{
+                  "name": {
+                    Type: schema.TypeString,
+                    Required: true,
+                    ForceNew: true,
+                  },
+                  "target_instance_count": {
+                    Type: schema.TypeInt,
+                    Required: true,
+                    ForceNew: true,
+                  },
+                  "hardware_profile": {
+                    Type: schema.TypeList,
+                    Required: true,
+                    ForceNew: true,
+                    MaxItems: 1,
+                    Elem: &schema.Resource{
+                      Schema: map[string]*schema.Schema{
+                        
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      "security_profile": {
+        Type: schema.TypeList
+        Optional: true,
+        ForceNew: true,
+        MaxItems: 1,
+        Elem: &schema.Resource{
+          Schema: map[string]*schema.Schema{
+            // TODO set DirectoryType attribute manually to ActiveDirectory
+            "domain": {
+              Type: schema.TypeString,
+              Required: true,
+              ForceNew: true,
+            },
+            "organizational_unit_dn":{
+              Type: schema.TypeString,
+              Required: true,
+              ForceNew: true,
+            },
+            "ldap_urls": {
+              Type:     schema.TypeList,
+              Required: true,
+              Elem:     &schema.Schema{Type: schema.TypeString},
+              ForceNew: true,
+            },
+            "domain_username": {
+              Type: schema.TypeString,
+              Required: true,
+              ForceNew: true,
+            },
+            "domain_user_password": {
+              Type: schema.TypeString,
+              Required: true,
+              ForceNew: true,
+            },
+            "cluster_users_group_dns": {
+              Type:     schema.TypeList,
+              Optional: true,
+              Elem:     &schema.Schema{Type: schema.TypeString},
+              ForceNew: true,
+            },
+          },
+        },
+      },
 		},
 	}
 }
