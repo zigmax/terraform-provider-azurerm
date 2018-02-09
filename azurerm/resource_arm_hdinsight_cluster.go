@@ -67,19 +67,9 @@ func resourceArmHDInsightCluster() *schema.Resource {
         MaxItems: 1,
         Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
-            "blueprint": {
-              Type: schema.TypeString,
-              Optional: true,
-              ForceNew: true,
-            },
             "kind": {
               Type: schema.TypeString,
               Required: true,
-              ForceNew: true,
-            },
-            "component_version": {
-              Type:     schema.TypeMap,
-              Computed: true,
               ForceNew: true,
             },
             "configurations": {
@@ -135,80 +125,27 @@ func resourceArmHDInsightCluster() *schema.Resource {
 										MaxItems: 1,
 										Elem: &schema.Resource{
 											Schema: map[string]*schema.Schema{
-												"linux_operating_system_profile": {
-													Type: schema.TypeList,
+												"username": {
+													Type: schema.TypeString,
 													Required: true,
 													ForceNew: true,
-													MaxItems: 1,
-													Elem: &schema.Resource{
-														Schema: map[string]*schema.Schema{
-															"username": {
-																Type: schema.TypeString,
-																Required: true,
-																ForceNew: true,
-															},
-															"password": {
-																Type: schema.TypeString,
-																Optional: true,
-																ForceNew: true,
-															},
-															"ssh_keys": {
-																Type: schema.TypeList,
-																Optional: true,
-																ForceNew: true,
-																Elem:     &schema.Schema{Type: schema.TypeString},
-															},
-														},
-													},
+												},
+												"password": {
+													Type: schema.TypeString,
+													Optional: true,
+													ForceNew: true,
+												},
+												"ssh_keys": {
+													Type: schema.TypeList,
+													Optional: true,
+													ForceNew: true,
+													Elem:     &schema.Schema{Type: schema.TypeString},
 												},
 											},
 										},
 									},
                 },
               },
-            },
-          },
-        },
-      },
-      "security_profile": {
-        Type: schema.TypeList
-        Optional: true,
-        ForceNew: true,
-        MaxItems: 1,
-        Elem: &schema.Resource{
-          Schema: map[string]*schema.Schema{
-            // TODO set DirectoryType attribute manually to ActiveDirectory
-            "domain": {
-              Type: schema.TypeString,
-              Required: true,
-              ForceNew: true,
-            },
-            "organizational_unit_dn":{
-              Type: schema.TypeString,
-              Required: true,
-              ForceNew: true,
-            },
-            "ldap_urls": {
-              Type:     schema.TypeList,
-              Required: true,
-              Elem:     &schema.Schema{Type: schema.TypeString},
-              ForceNew: true,
-            },
-            "domain_username": {
-              Type: schema.TypeString,
-              Required: true,
-              ForceNew: true,
-            },
-            "domain_user_password": {
-              Type: schema.TypeString,
-              Required: true,
-              ForceNew: true,
-            },
-            "cluster_users_group_dns": {
-              Type:     schema.TypeList,
-              Optional: true,
-              Elem:     &schema.Schema{Type: schema.TypeString},
-              ForceNew: true,
             },
           },
         },
@@ -229,11 +166,15 @@ func resourceArmHDInsightClusterCreate(d *schema.ResourceData, meta interface{})
 	tags := d.Get("tags").(map[string]interface{})
 	metadata := expandTags(tags)
 
-	clusterCreateProperties := expandClusterCreateProperties(d)
+	clusterCreateProperties, err := expandClusterCreateProperties(d)
+	if err != nil {
+		return err
+	}
 
 	cluster := hdinsight.Cluster{
 		Location: utils.String(location),
 		Tags:     metadata,
+		Properties: clusterCreateProperties,
 	}
 
 	future, err := client.Create(ctx, resGroup, name, cluster)
@@ -261,7 +202,71 @@ func resourceArmHDInsightClusterCreate(d *schema.ResourceData, meta interface{})
 	return resourceArmHDInsightClusterRead(d, meta)
 }
 
+func expandClusterCreateProperties(d *schema.ResourceData) (*hdinsight.ClusterCreateProperties, error) {
+	clusterVersion := d.Get("cluster_version").(string)
+	osType := hdinsight.OSType(d.Get("os_type").(string))
+	tier := hdinsight.Tier(d.Get("tier").(string))
+	clusterDefinition, err := expandClusterDefinition(d)
+	if err != nil {
+		return nil, err
+	}
+	computeProfile, err := expandComputeProfile(d)
+	if err != nil {
+		return nil, err
+	}
+}
 
+func expandClusterDefinition(d *schema.ResourceData) (*hdinsight.ClusterDefinition, error) {
+	clusterDefinitionConfig := d.Get("cluster_definition").([]interface{})
+	clusterDef := clusterDefinitionConfig[0].(map[string]interface{})
+	kind := clusterDef["kind"].(string)
+
+	configurationMap := clusterDef["configurations"].(map[string]interface{})
+	configurations := make(map[string]interface{}, len(configurationMap))
+	for key, val := range configurationMap {
+		configurations[key] = struct {
+			Value interface{}
+		}{
+			Value: val,
+		}
+	}
+
+	clusterDefinition := &hdinsight.ClusterDefinition{
+		Kind: &kind,
+		ClusterDefinition: &configurations
+	}
+
+	return clusterDefinition
+}
+
+func expandComputeProfile(d *schema.ResourceData) (*hdinsight.ComputeProfile, error) {
+	computeProfileConfig := d.Get("compute_profile").([]interface{})
+	computeProfileInfo := computeProfileConfig[0].(map[string]interface{})
+
+	rolesConfig := computerProfileInfo["role"].(*schema.Set).List()
+	roles := make([]hdinsight.Role, 0, len(rolesConfig))
+	for _, role := range rolesConfig {
+		roleConfig := role.(map[string]interface{})
+		name := roleConfig["name"].(string)
+		targetInstanceCount := roleConfig["target_instance_count"].(int)
+		hardwareProfile := expandHardwareProfile(roleConfig)
+		osProfile := expandOSProfile(roleConfig)
+	}
+}
+
+func expandHardwareProfile(role map[string]interface{}) *hdinsight.HardwareProfile {
+	hardwareProfileConfig := role["hardware_profile"].([]interface{})
+	hardwareProfileInfo := hardwareProfileConfig[0].(map[string]interface{})
+	vmSize := hardwareProfileInfo["vm_size"].(string)
+
+	hardwareProfile := &hdinsight.HardwareProfile {
+		VMSize: &vmSize,
+	}
+
+	return hardwareProfile
+}
+
+func expandOSProfile(role map[string]interface{}) *hdinsight.OsProfile {}
 
 func resourceArmHDInsightClusterRead(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*ArmClient).clustersClient
