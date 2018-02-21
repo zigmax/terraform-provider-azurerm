@@ -177,8 +177,9 @@ type ArmClient struct {
 	trafficManagerEndpointsClient trafficmanager.EndpointsClient
 
 	// Web
-	appServicePlansClient web.AppServicePlansClient
-	appServicesClient     web.AppsClient
+	appServiceEnvironmentsClient web.AppServiceEnvironmentsClient
+	appServicePlansClient        web.AppServicePlansClient
+	appServicesClient            web.AppsClient
 }
 
 func (c *ArmClient) configureClient(client *autorest.Client, auth autorest.Authorizer) {
@@ -808,6 +809,13 @@ func (c *ArmClient) registerTrafficManagerClients(endpoint, subscriptionId strin
 }
 
 func (c *ArmClient) registerWebClients(endpoint, subscriptionId string, auth autorest.Authorizer) {
+	appServiceEnvironmentsClient := web.NewAppServiceEnvironmentsClientWithBaseURI(endpoint, subscriptionId)
+	c.configureClient(&appServiceEnvironmentsClient.Client, auth)
+	// App Service Environments are s-l-o-w.
+	appServiceEnvironmentsClient.RetryAttempts = 300
+	appServiceEnvironmentsClient.RetryDuration = 60 * time.Second
+	c.appServiceEnvironmentsClient = appServiceEnvironmentsClient
+
 	appServicePlansClient := web.NewAppServicePlansClientWithBaseURI(endpoint, subscriptionId)
 	c.configureClient(&appServicePlansClient.Client, auth)
 	c.appServicePlansClient = appServicePlansClient
